@@ -4,11 +4,11 @@ NAVIGATION:
 
   ROUTER_LOC:
     # name, x0, y0, rssi0, env_factor, rssi_var)
-    - ["Scott Kyle's Network", 8.0, 8, -38, 2.2, 3]
-    - ["JoJoGirls", 35.0, 0.0, -20, 3.6, 4]
-    - ["Summer2020", 0, 0, -25, 3, 2]
-    - ["Summer2020-5G", 0, 0, -32, 3.5, 2]
-    - ["smk_iphone", 7.0, 6.0, -35, 2, 3]
+    - ["Scott Kyle's Network", -1, 2, -38, 2.2, 3, "rtr1"]
+    - ["JoJoGirls", -28.0, 7.0, -20, 3.6, 4, "rtr2"]
+    - ["Summer2020", 7, 13, -25, 3, 2, "rtr3"]
+    - ["Summer2020-5G", 7, 13, -32, 3.5, 2, "rtr4"]
+    - ["smk_iphone", -1, 6.0, -35, 2, 3, "rtr5"]
 
   PROC_COVAR: 1
 
@@ -20,32 +20,35 @@ GUIDANCE:
   NODES:
     TV:
       NODE_ID: 1
-      COORD: [0, 0]
+      COORD: [7, 13]
       CONNECTS_TO: [6, 7]
     CENTRE:
       NODE_ID: 2
-      COORD: [8, 5]
+      COORD: [0, 8]
       CONNECTS_TO: [6, 7, 3, 4, 5]
     TABLE:
       NODE_ID: 3
-      COORD: [8, 0]
+      COORD: [0, 13]
       CONNECTS_TO: [6, 7, 2]
     FRIDGE:
       NODE_ID: 4
-      COORD: [0, 5]
+      COORD: [6, 8]
       CONNECTS_TO: [2]
     FRONT_DOOR:
       NODE_ID: 5
-      COORD: [8, 10]
+      COORD: [0, 0]
       CONNECTS_TO: [2]
     LEFT_COUCH:
       NODE_ID: 6
-      COORD: [4, 3]
+      COORD: [4, 14]
       CONNECTS_TO: [1, 2, 3]
     RIGHT_COUCH:
       NODE_ID: 7
-      COORD: [4, -2]
+      COORD: [4, 11]
       CONNECTS_TO: [1, 2, 3]
   TASK:
     ADDR: "127.0.0.1"
     PORT: 7878
+
+CONTROL:
+  ORIGIN: True

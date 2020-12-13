@@ -24,7 +24,7 @@ def main(config):
 
     interface = config["INTERFACE"]
     sudo = config["SUDO"]
-    router_loc = {rtr[0]: Router(*rtr) for rtr in config["ROUTER_LOC"]}
+    router_loc = {rtr[0]: Router(*rtr[:-1]) for rtr in config["ROUTER_LOC"]}
     process_covar = config["PROC_COVAR"] ** 2 * np.eye(2)
 
     est_state = np.mean(

@@ -14,7 +14,7 @@ def build_graph(g, nodes_info):
     for node_data in nodes_info.values():
         new_node = g.vertex(node_data["NODE_ID"], add_missing=True)
         g.vp["name"][new_node] = node_data["NODE_ID"]
-        g.vp["pos"][new_node] = (node_data["COORD"][0], -node_data["COORD"][1])
+        g.vp["pos"][new_node] = (node_data["COORD"][0], node_data["COORD"][1])
 
     for node, node_data in nodes_info.items():
         src = node_data["NODE_ID"]
@@ -57,14 +57,11 @@ def get_route(g, src, task_list):
     src_node = g.vertex(src)
     dists = g.ep["dist"]
 
-    if src in task_list:
-        task_order = [src]
-        node_order = [src]
-        task_list.remove(src)
+    task_order = [src]
+    node_order = [src]
 
-    else:
-        task_order = []
-        node_order = []
+    if src in task_list:
+        task_list.remove(src)
 
     while task_list:
         dist_map, pred_map = gt.astar_search(g, source=src_node, weight=dists)
