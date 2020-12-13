@@ -22,12 +22,12 @@ class Router:
 
     def expected_rssi(self, x, y):
         est_loc = np.array([[x], [y]])
-        # try:
-        return self.rssi0 - 10 * self.env_factor * np.log10(
-            expected_distance(self.loc(), est_loc)
-        )
-        # except Exception:
-        #     return self.rssi0
+        try:
+            return self.rssi0 - 10 * self.env_factor * np.log10(
+                expected_distance(self.loc(), est_loc)
+            )
+        except Exception:
+            return self.rssi0
 
     def expected_rssi_cov(self, x, y):
         est_loc = np.array([[x], [y]])
@@ -49,13 +49,3 @@ class Router:
 
     def rssi_to_dist(self, rssi):
         return 10 ** ((self.rssi0 - rssi) / (10 * self.env_factor))
-
-
-if __name__ == "__main__":
-
-    rtr = Router("Test", 0, 0, -69, env_factor=2)
-
-    d = rtr.rssi_to_dist(-60)
-
-    print(rtr.expected_rssi(d, 0))
-    print(rtr.expected_rssi_cov(d, 0))
