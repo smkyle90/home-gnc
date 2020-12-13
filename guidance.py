@@ -11,7 +11,7 @@ import zmq
 
 
 def build_graph(g, nodes_info):
-    for _node, node_data in nodes_info.values():
+    for node_data in nodes_info.values():
         new_node = g.vertex(node_data["NODE_ID"], add_missing=True)
         g.vp["name"][new_node] = node_data["NODE_ID"]
         g.vp["pos"][new_node] = (node_data["COORD"][0], node_data["COORD"][1])

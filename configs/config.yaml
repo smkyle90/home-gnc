@@ -8,7 +8,7 @@ NAVIGATION:
     - ["JoJoGirls", -28.0, 7.0, -20, 3.6, 5, "rtr2"]
     - ["Summer2020", 7, 13, -25, 3, 2, "rtr3"]
     - ["Summer2020-5G", 7, 13, -32, 3.5, 3, "rtr4"]
-    - ["smk_iphone", -1.0, 0.0, -35, 2, 2, "rtr5"]
+    - ["smk_iphone", -1.0, 0.0, -35, 4.0, 2, "rtr5"]
 
   PROC_COVAR: 1
 
