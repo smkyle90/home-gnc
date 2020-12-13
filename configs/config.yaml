@@ -1,0 +1,51 @@
+NAVIGATION:
+  INTERFACE: 'wlp5s0'
+  SUDO: True
+
+  ROUTER_LOC:
+    # name, x0, y0, rssi0, env_factor, rssi_var)
+    - ["Scott Kyle's Network", 8.0, 8, -38, 2.2, 3]
+    - ["JoJoGirls", 35.0, 0.0, -20, 3.6, 4]
+    - ["Summer2020", 0, 0, -25, 3, 2]
+    - ["Summer2020-5G", 0, 0, -32, 3.5, 2]
+    - ["smk_iphone", 7.0, 6.0, -35, 2, 3]
+
+  PROC_COVAR: 1
+
+  STATE:
+    ADDR: "127.0.0.1"
+    PORT: 7474
+
+GUIDANCE:
+  NODES:
+    TV:
+      NODE_ID: 1
+      COORD: [0, 0]
+      CONNECTS_TO: [6, 7]
+    CENTRE:
+      NODE_ID: 2
+      COORD: [8, 5]
+      CONNECTS_TO: [6, 7, 3, 4, 5]
+    TABLE:
+      NODE_ID: 3
+      COORD: [8, 0]
+      CONNECTS_TO: [6, 7, 2]
+    FRIDGE:
+      NODE_ID: 4
+      COORD: [0, 5]
+      CONNECTS_TO: [2]
+    FRONT_DOOR:
+      NODE_ID: 5
+      COORD: [8, 10]
+      CONNECTS_TO: [2]
+    LEFT_COUCH:
+      NODE_ID: 6
+      COORD: [4, 3]
+      CONNECTS_TO: [1, 2, 3]
+    RIGHT_COUCH:
+      NODE_ID: 7
+      COORD: [4, -2]
+      CONNECTS_TO: [1, 2, 3]
+  TASK:
+    ADDR: "127.0.0.1"
+    PORT: 7878

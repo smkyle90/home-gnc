@@ -1,0 +1,12 @@
+version: '3'
+services:
+  controller:
+    network_mode: host
+    build:
+      context: .
+      dockerfile: ./Dockerfile.c
+  navigation:
+    network_mode: host
+    build:
+      context: .
+      dockerfile: ./Dockerfile.n
