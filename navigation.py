@@ -49,7 +49,7 @@ def main(config):
 
         # Publish the data
         print("Logger: Publishing data.")
-        json_msg = json.dumps(scott.loc().tolist())
+        json_msg = json.dumps({"loc": scott.loc().tolist(), "cov": scott.cov.tolist()})
         socket.send_json(json_msg)
         print("Logger: Data published")
 

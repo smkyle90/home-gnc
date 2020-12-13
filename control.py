@@ -2,6 +2,7 @@
 import argparse
 import json
 
+import matplotlib.pyplot as plt
 import numpy as np
 import yaml
 import zmq
@@ -9,7 +10,17 @@ from scipy import signal
 
 
 class Controller:
-    def __init__(self, state_socket, task_socket, poles=[-0.25, -0.5], task_delta=2):
+    def __init__(
+        self,
+        ax,
+        state_socket,
+        task_socket,
+        routers,
+        nodes,
+        poles=[-0.25, -0.5],
+        task_delta=2,
+    ):
+        self.ax = ax
         self.state_socket = state_socket
         self.task_socket = task_socket
         self.poles = poles
@@ -17,11 +28,16 @@ class Controller:
         self.task = []
         self.original_task = []
         self.task_delta = task_delta
+
+        self.routers = routers
+        self.nodes = nodes
         # self.visited=[False for i in self.task]
 
     def get_curr_state(self):
         json_data = self.state_socket.recv_json()
-        return np.array(json.loads(json_data))
+
+        dict_data = json.loads(json_data)
+        return {k: np.array(v) for k, v in dict_data.items()}
 
     def get_ref_state(self):
         if self.task:
@@ -42,8 +58,34 @@ class Controller:
         if np.linalg.norm(task_loc - curr_loc) < self.task_delta:
             self.task = self.task[1:]
 
+    def render(self, q, qd, u):
+        self.ax.clear()
+        self.ax.plot(q["loc"][0, 0], q["loc"][1, 0], "g+")
+        self.ax.plot(qd[0, 0], qd[1, 0], "gx")
+
+        for rtr_name, rtr in self.routers.items():
+            self.ax.plot(*rtr, "b+")
+            self.ax.text(*rtr, rtr_name)
+
+        for node_id, node in self.nodes.items():
+            if node in self.task:
+                self.ax.plot(*node, "bo")
+            elif node in self.original_task:
+                self.ax.plot(*node, "go")
+            else:
+                self.ax.plot(*node, "ko")
+
+            self.ax.text(*node, node_id)
+
+        self.ax.set_xlim([-30, 30])
+        self.ax.set_ylim([-30, 30])
+
 
 def main(config):
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    plt.ion()
 
     state_sub_addr = config["NAVIGATION"]["STATE"]["ADDR"]
     state_sub_port = int(config["NAVIGATION"]["STATE"]["PORT"])
@@ -69,7 +111,15 @@ def main(config):
         )
     )
 
-    controller = Controller(state_socket, task_socket)
+    rtr_locs = config["NAVIGATION"]["ROUTER_LOC"]
+    vtx_locs = config["GUIDANCE"]["NODES"]
+
+    rtr_locs = {rtr[0]: rtr[1:3] for rtr in rtr_locs}
+    vtx_locs = {
+        node_data["NODE_ID"]: node_data["COORD"] for node_data in vtx_locs.values()
+    }
+
+    controller = Controller(ax, state_socket, task_socket, rtr_locs, vtx_locs)
 
     print("Logger: Getting task from guidance.")
     controller.get_task()
@@ -82,18 +132,19 @@ def main(config):
     K = signal.place_poles(A, B, poles)
     K = K.gain_matrix
     print("Logger: Controller configured. Starting main loop.")
+
     while True:
 
-        x = controller.get_curr_state()
-        controller.check_task_status(x)
-        xd = controller.get_ref_state()
+        q = controller.get_curr_state()
+        controller.check_task_status(q["loc"])
+        qd = controller.get_ref_state()
 
-        print("State Estimate ", x)
-        print("Next node ", xd)
+        u = -K.dot(q["loc"] - qd)
 
-        u = -K.dot(x - xd)
+        controller.render(q, qd, u)
 
-        print("Control ", u)
+        plt.show()
+        plt.pause(0.5)
 
 
 if __name__ == "__main__":
