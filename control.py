@@ -5,14 +5,10 @@ import json
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
-import pyqtgraph as pg
-import pyqtgraph.exporters
-import pyqtgraph.opengl as gl
 import yaml
 import zmq
 from matplotlib.patches import Circle
 from numpy.linalg import eig
-from pyqtgraph.Qt import QtCore, QtGui
 from scipy import signal
 
 USER = "#90C550"
@@ -41,8 +37,8 @@ class Controller:
         self.task_socket = task_socket
         self.poles = poles
 
-        self.task = []
-        self.original_task = []
+        self.task = None
+        self.original_task = None
         self.task_delta = task_delta
 
         self.routers = routers
@@ -66,11 +62,15 @@ class Controller:
         if origin:
             task = [[0, 0]]
         else:
-            json_data = self.task_socket.recv_json()
-            task = json.loads(json_data)
+            try:
+                json_data = self.task_socket.recv_json(zmq.NOBLOCK)
+                task = json.loads(json_data)
+            except zmq.error.Again:
+                task = None
 
-        self.task = task
-        self.original_task = task
+        if task is not None:
+            self.task = task
+            self.original_task = task
 
     def check_task_status(self, curr_loc):
         if not self.task:
@@ -80,48 +80,54 @@ class Controller:
         if np.linalg.norm(task_loc - curr_loc) < self.task_delta:
             self.task = self.task[1:]
 
+        if not self.task:
+            self.task = None
+
     def render(self, q, qd, u):
         self.ax.clear()
         self.ax_vx.clear()
         self.ax_vy.clear()
 
-        e_val, __ = eig(q["cov"])
-        r = np.sqrt(np.sum(e_val))
-        self.ax.plot(
-            q["loc"][0, 0], q["loc"][1, 0], marker="o", color=USER, markersize=6
-        )
+        if len(q):
+            e_val, __ = eig(q["cov"])
+            r = np.sqrt(np.sum(e_val))
+            self.ax.plot(
+                q["loc"][0, 0], q["loc"][1, 0], marker="o", color=USER, markersize=6
+            )
 
-        c = Circle(
-            (q["loc"][0, 0], q["loc"][1, 0]), r, fill=True, color=USER, alpha=0.2
-        )
-        self.ax.add_patch(c)
+            c = Circle(
+                (q["loc"][0, 0], q["loc"][1, 0]), r, fill=True, color=USER, alpha=0.2
+            )
+            self.ax.add_patch(c)
 
-        for rtr_name, rtr in self.routers.items():
-            self.ax.plot(*rtr, marker="+", color=RTR)
-            self.ax.text(rtr[0] + 0.2, rtr[1], rtr_name, color=RTR)
+            self.ax.text(10, -4, "{} Routers Used".format(q["n_meas"]), color=RTR)
 
         if len(qd):
             self.ax.plot(qd[0, 0], qd[1, 0], color=USER, marker="o", markersize=10)
             self.ax.plot(qd[0, 0], qd[1, 0], color="w", marker="o", markersize=8)
 
-        for i, e in enumerate(self.original_task):
-            if i:
-                self.ax.plot(
-                    [e[0], self.original_task[i - 1][0]],
-                    [e[1], self.original_task[i - 1][1]],
-                    color=NODE,
-                    linewidth=1,
-                    alpha=0.2,
-                )
+        if self.original_task is not None:
+            for i, e in enumerate(self.original_task):
+                if i:
+                    self.ax.plot(
+                        [e[0], self.original_task[i - 1][0]],
+                        [e[1], self.original_task[i - 1][1]],
+                        color=NODE,
+                        linewidth=1,
+                        alpha=0.2,
+                    )
+
+        for rtr_name, rtr in self.routers.items():
+            self.ax.plot(*rtr, marker="+", color=RTR)
+            self.ax.text(rtr[0] + 0.2, rtr[1], rtr_name, color=RTR)
 
         for node_id, node in self.nodes.items():
             self.ax.plot(*node, marker="o", color=NODE)
             self.ax.text(node[0] - 0.6, node[1], node_id, color=NODE)
 
-        self.ax.text(10, -4, "{} Routers Used".format(q["n_meas"]), color=RTR)
-
         self.ax.set_xlim([-5, 15])
         self.ax.set_ylim([-5, 15])
+        self.ax.axis("equal")
         self.ax.grid()
 
         try:
@@ -197,10 +203,6 @@ def main(config):
         ax_main, ax_vx, ax_vy, state_socket, task_socket, rtr_locs, vtx_locs
     )
 
-    print("Logger: Getting task from guidance.")
-    controller.get_task(config["CONTROL"]["ORIGIN"])
-    print("Logger: Task received.")
-
     A = np.array([[1, 1], [0, 1]])
     B = np.array([[1, 0], [0, 1]])
     poles = np.array([-1, -2])
@@ -212,15 +214,27 @@ def main(config):
     while True:
 
         q = controller.get_curr_state()
-        controller.check_task_status(q["loc"])
-        qd = controller.get_ref_state()
 
-        u = -K.dot(q["loc"] - qd)
+        controller.get_task(config["CONTROL"]["ORIGIN"])
+
+        if controller.task is not None:
+            print("Logger: Checking Task Status.")
+            controller.check_task_status(q["loc"])
+
+            qd = controller.get_ref_state()
+            print("Logger: Reference state received.")
+
+            print("Logger: Calculating controls.")
+            u = -K.dot(q["loc"] - qd)
+        else:
+            print("Logger: Awaiting Guidance input.")
+            qd = []
+            u = []
 
         controller.render(q, qd, u)
 
         plt.show()
-        plt.pause(0.5)
+        plt.pause(1.0)
 
 
 if __name__ == "__main__":

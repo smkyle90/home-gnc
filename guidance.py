@@ -42,11 +42,11 @@ def reconstruct_path(src, tgt, preds):
     Returns:
 
     """
-    vertices = [tgt]
-    while tgt != src:
-        src = preds[tgt]
-        tgt = src
+
+    vertices = []
+    while int(tgt) != int(src):
         vertices.append(tgt)
+        tgt = preds.a[tgt]
 
     vertices.reverse()
 
@@ -71,7 +71,7 @@ def get_route(g, src, task_list):
             if dist_map[t] < min_dist:
                 next_node = t
 
-        node_order.extend(reconstruct_path(src, next_node, pred_map))
+        node_order.extend(reconstruct_path(src_node, next_node, pred_map))
 
         src_node = g.vertex(next_node)
         task_list.remove(next_node)
