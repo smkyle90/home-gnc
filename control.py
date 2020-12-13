@@ -100,8 +100,9 @@ class Controller:
             self.ax.plot(*rtr, marker="+", color=RTR)
             self.ax.text(rtr[0] + 0.2, rtr[1], rtr_name, color=RTR)
 
-        self.ax.plot(qd[0, 0], qd[1, 0], color=USER, marker="o", markersize=10)
-        self.ax.plot(qd[0, 0], qd[1, 0], color="w", marker="o", markersize=8)
+        if len(qd):
+            self.ax.plot(qd[0, 0], qd[1, 0], color=USER, marker="o", markersize=10)
+            self.ax.plot(qd[0, 0], qd[1, 0], color="w", marker="o", markersize=8)
 
         for i, e in enumerate(self.original_task):
             if i:
@@ -117,15 +118,21 @@ class Controller:
             self.ax.plot(*node, marker="o", color=NODE)
             self.ax.text(node[0] - 0.6, node[1], node_id, color=NODE)
 
+        self.ax.text(10, -4, "{} Routers Used".format(q["n_meas"]), color=RTR)
+
         self.ax.set_xlim([-5, 15])
         self.ax.set_ylim([-5, 15])
         self.ax.grid()
 
-        u = np.where(u < -5, -5, u)
-        u = np.where(u > 5, 5, u)
+        try:
+            u = np.where(u < -5, -5, u)
+            u = np.where(u > 5, 5, u)
 
-        self.ax_vx.plot(u[0, 0], 0, "ko", markersize=15)
-        self.ax_vy.plot(0, u[1, 0], "ko", markersize=15)
+            self.ax_vx.plot(u[0, 0], 0, "ko", markersize=15)
+            self.ax_vy.plot(0, u[1, 0], "ko", markersize=15)
+        except Exception:
+            self.ax_vx.plot(0, 0, "ko", markersize=15)
+            self.ax_vy.plot(0, 0, "ko", markersize=15)
 
         self.ax_vx.set_xlim([-6, 6])
         self.ax_vx.set_ylim([-1, 1])

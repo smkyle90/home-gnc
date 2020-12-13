@@ -28,21 +28,19 @@ class Person:
 
         for net in network_data:
             if net["ssid"] in router_loc:
-                print("SSID", net["ssid"])
-
-                print("RSSI", net["signal"])
                 rtr_inf = router_loc[net["ssid"]]
-
-                print("Calculated Distance", rtr_inf.rssi_to_dist(net["signal"]))
+                calc_dist = rtr_inf.rssi_to_dist(net["signal"])
+                print(
+                    "Logger: SSID: {}, RSSI: {} dB, Calc Distance: {} m.".format(
+                        net["ssid"], net["signal"], round(calc_dist, 2)
+                    )
+                )
                 z.append(net["signal"])
                 z_hat.append(rtr_inf.expected_rssi(*self.loc()[:, 0]))
                 H.append(rtr_inf.expected_rssi_cov(*self.loc()[:, 0]))
                 R.append(rtr_inf.rssi_var ** 2)
 
         if z:
-            print("received meas: ", z)
-            print("expected meas: ", z_hat)
-
             try:
                 z = np.array(z).reshape(-1, 1)
                 z_hat = np.array(z_hat).reshape(-1, 1)
@@ -60,3 +58,5 @@ class Person:
                 print("Logger: Exception: {}".format(e))
 
         self.cov = (self.cov + self.cov.T) / 2
+
+        return len(z)

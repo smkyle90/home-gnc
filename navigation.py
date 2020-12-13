@@ -41,15 +41,19 @@ def main(config):
         print("Logger: Scanning for network data.")
         net_data = scan_networks(interface, sudo)
 
-        print(net_data)
         print("Logger: Network Data received.")
 
-        scott.update(net_data, router_loc)
-        print("Logger: Update Step Complete.")
+        n_meas = scott.update(net_data, router_loc)
+        print("Logger: Update Step Complete using {} measurements.".format(n_meas))
+
+        if n_meas < 3:
+            print("Logger: System is unobservable. Number of measurements is too low.")
 
         # Publish the data
         print("Logger: Publishing data.")
-        json_msg = json.dumps({"loc": scott.loc().tolist(), "cov": scott.cov.tolist()})
+        json_msg = json.dumps(
+            {"loc": scott.loc().tolist(), "cov": scott.cov.tolist(), "n_meas": n_meas}
+        )
         socket.send_json(json_msg)
         print("Logger: Data published")
 
