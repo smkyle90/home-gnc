@@ -5,8 +5,8 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile.c
-  navigation:
+  guidance:
     network_mode: host
     build:
       context: .
-      dockerfile: ./Dockerfile.n
+      dockerfile: ./Dockerfile.g

@@ -7,7 +7,7 @@ import numpy as np
 import yaml
 import zmq
 
-from lib.funcs import calibrate, scan_networks
+from lib.funcs import scan_networks
 from lib.objects import Person, Router
 
 
@@ -34,17 +34,20 @@ def main(config):
 
     scott = Person(est_state[0, 0], est_state[1, 0], est_covar)
 
+    n_wait = 0
     while True:
         scott.predict(process_covar)
         print("Logger: Predict Step Complete.")
 
-        print("Logger: Scanning for network data.")
-        net_data = scan_networks(interface, sudo)
+        n_meas = 0
+        if n_wait % 5 == 0:
+            print("Logger: Scanning for network data.")
+            net_data = scan_networks(interface, sudo)
 
-        print("Logger: Network Data received.")
+            print("Logger: Network Data received.")
 
-        n_meas = scott.update(net_data, router_loc)
-        print("Logger: Update Step Complete using {} measurements.".format(n_meas))
+            n_meas = scott.update(net_data, router_loc)
+            print("Logger: Update Step Complete using {} measurements.".format(n_meas))
 
         if n_meas < 3:
             print("Logger: System is unobservable. Number of measurements is too low.")
@@ -56,6 +59,8 @@ def main(config):
         )
         socket.send_json(json_msg)
         print("Logger: Data published")
+        n_wait += 1
+        time.sleep(1)
 
 
 if __name__ == "__main__":

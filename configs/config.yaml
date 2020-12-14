@@ -4,11 +4,13 @@ NAVIGATION:
 
   ROUTER_LOC:
     # name, x0, y0, rssi0, env_factor, rssi_var)
-    - ["Scott Kyle's Network", -1, 6.0, -38, 2.2, 3, "rtr1"]
-    - ["JoJoGirls", -28.0, 7.0, -20, 3.6, 5, "rtr2"]
-    - ["Summer2020", 7, 13, -25, 3, 2, "rtr3"]
-    - ["Summer2020-5G", 7, 13, -32, 3.5, 3, "rtr4"]
-    - ["smk_iphone", -1.0, 0.0, -35, 4.0, 2, "rtr5"]
+    - ["Scott Kyle's Network", -1, 6.0, -38, 2.2, 15, "rtr1"]
+    - ["JoJoGirls", -28.0, 7.0, -20, 3.6, 20, "rtr2"]
+    - ["Summer2020", 7, 13, -25, 2.8, 10, "rtr3"]
+    - ["Summer2020-5G", 7, 13, -32, 3.5, 10, "rtr4"]
+    - ["smk_iphone", -1.0, 0.0, -35, 4.0, 5, "rtr5"]
+    - ["sdf_iphone", -1.0, 10.0, -35, 4.0, 5, "rtr6"]
+    - ["Kitchen speaker.k", -1.0, 15.0, -30, 2.5, 15, "rtr7"]
 
   PROC_COVAR: 1
 
