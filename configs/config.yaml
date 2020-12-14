@@ -24,30 +24,37 @@ GUIDANCE:
       NODE_ID: 1
       COORD: [7, 13]
       CONNECTS_TO: [6, 7]
+      ALIAS: "TV"
     CENTRE:
       NODE_ID: 2
       COORD: [0, 8]
       CONNECTS_TO: [6, 7, 3, 4, 5]
+      ALIAS: ""
     TABLE:
       NODE_ID: 3
       COORD: [0, 13]
       CONNECTS_TO: [6, 7, 2]
+      ALIAS: "Table"
     FRIDGE:
       NODE_ID: 4
       COORD: [6, 8]
       CONNECTS_TO: [2]
+      ALIAS: "Fridge"
     FRONT_DOOR:
       NODE_ID: 5
       COORD: [0, 0]
       CONNECTS_TO: [2]
+      ALIAS: "Door"
     LEFT_COUCH:
       NODE_ID: 6
       COORD: [4, 14]
       CONNECTS_TO: [1, 2, 3]
+      ALIAS: ""
     RIGHT_COUCH:
       NODE_ID: 7
       COORD: [4, 11]
       CONNECTS_TO: [1, 2, 3]
+      ALIAS: ""
   TASK:
     ADDR: "127.0.0.1"
     PORT: 7878
