@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import json
 
-import matplotlib.pyplot as plt
 import numpy as np
 import zmq
 from matplotlib.patches import Circle
