@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Circle
 
-from . import Obstacle
+from .Obstacle import Obstacle
 
 
 class Environment:
