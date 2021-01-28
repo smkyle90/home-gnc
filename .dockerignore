@@ -1,4 +1,4 @@
 # Ignore the workspace
 
-/workspace*
+# /workspace*
 /scripts*
