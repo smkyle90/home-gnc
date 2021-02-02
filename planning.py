@@ -3,11 +3,12 @@ import random
 import time
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from lib.objects import Arena, Environment, Obstacle
 
-
-def main():
+# def main():
+if True:
     # Arena configuration
     x_min, x_max = 0, 30
     y_min, y_max = 0, 30
@@ -15,11 +16,11 @@ def main():
 
     # Obstacle configuration
     n_stat = 2
-    n_dyn = 2
+    n_dyn = 4
     o_min = 1
-    o_max = 3
+    o_max = 2
     obs_val = 100
-    epsilon = 1
+    epsilon = 0
 
     plot_data = True
 
@@ -42,45 +43,41 @@ def main():
         for i in range(n_dyn)
     ]
 
+    # Define an arena
     arena = Arena(x_min, x_max, dx, y_min, y_max, dy)
 
-    t1 = time.perf_counter()
+    # Define an environment
     env = Environment(arena, static_obs, dynamic_obs)
-    t2 = time.perf_counter()
-    print("Instantiate environment: {} ms".format(round(1000 * (t2 - t1), 2)))
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
     plt.ion()
 
+    # Define a task
+
     while True:
-        dynamic_obs = [
-            Obstacle(
-                random.randint(x_min, x_max),
-                random.randint(x_min, x_max),
-                random.randint(1, o_max),
-            )
-            for i in range(n_dyn)
-        ]
+        for dyn in dynamic_obs:
+            dyn.x += random.gauss(0, 1)
+            dyn.y += random.gauss(0, 1)
 
         t1 = time.perf_counter()
-        env.DynamicObstacles = dynamic_obs
+        env.dynamic_obs = dynamic_obs
         t2 = time.perf_counter()
         print("Update dynamic obstacles: {} ms".format(round(1000 * (t2 - t1), 2)))
-        q_reach = env.reachable_coordinates()
 
+        q_reach = env.reachable_coordinates()
         src_pos = random.choice(q_reach)
         tgt_pos = random.choice(q_reach)
+        src = env.get_node_by_coord(*src_pos)
+        tgt = env.get_node_by_coord(*tgt_pos)
 
-        src_name = "({}, {})".format(*src_pos)
-        tgt_name = "({}, {})".format(*tgt_pos)
-
-        src = env.node_map[src_name]
-        tgt = env.node_map[tgt_name]
         t1 = time.perf_counter()
         nodes_visited = env.get_route(src, tgt)
         t2 = time.perf_counter()
         print("Calculate route: {} ms".format(round(1000 * (t2 - t1), 2)))
+        print("Line of sight: {}".format(env.check_line_of_sight(*src_pos, *tgt_pos)))
+
+        min_path = env.get_coordinates(nodes_visited)
 
         if plot_data:
             ax = env.plot_environment(ax, nodes_visited)
@@ -88,5 +85,5 @@ def main():
             plt.pause(1)
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

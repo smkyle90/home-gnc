@@ -2,49 +2,46 @@ import numpy as np
 
 
 class Unicycle:
-    def __init__(self, q=None, u=None):
-        """
-        """
+    def __init__(self, x, y, theta, v, omega):
+        self.x = x
+        self.y = y
+        self.theta = theta
+        self.v = v
+        self.omega = omega
 
-        if q is None:
-            q = np.zeros((3, 1))
-        else:
-            q = q.reshape(3, 1)
+        self.__nq = 3
+        self.__nu = 2
 
-        if u is None:
-            u = np.zeros((2, 1))
-        else:
-            u = u.reshape(2, 1)
+    def as_vec(self):
+        return np.array([self.x, self.y, self.theta]).reshape(self.__nq, 1)
 
-        self.q = q
-        self.u = u
-
-        self.__update()
-
-    def __update(self):
-        """
-        """
-        self.G = np.array(
-            [[np.cos(self.q[2, 0]), 0], [np.sin(self.q[2, 0]), 0], [0, 1],]
-        )
+    def G(self):
+        return np.array([[np.cos(self.q[2, 0]), 0], [np.sin(self.q[2, 0]), 0], [0, 1],])
 
     def apply_control(self, u, dt):
-        """
-        """
-        self.__update()
-        self.q = self.q + self.G.dot(self.u) * dt
+        u = u.reshape(self.__nu, 1)
 
-    def linear_matrices(self, u):
-        """
-        """
+        q = self.as_vec()
+        q = q + self.G().dot(u) * dt
+
+        self.x = q[0, 0]
+        self.y = q[1, 0]
+        self.theta = q[2, 0]
+        self.v = u[0, 0]
+        self.omega = u[1, 0]
+
+    def linear_matrices(self, q, u):
+        q = q.reshape(self.__nq, 1)
+        u = u.reshape(self.__nu, 1)
+
         A = np.array(
             [
-                [0, 0, -self.u[0, 0] * np.sin(self.q[2, 0])],
-                [0, 0, self.u[0, 0] * np.cos(self.q[2, 0])],
+                [0, 0, -u[0, 0] * np.sin(q[2, 0])],
+                [0, 0, u[0, 0] * np.cos(q[2, 0])],
                 [0, 0, 0],
             ]
         )
 
-        B = np.array([[np.cos(self.q[2, 0]), 0], [np.sin(self.q[2, 0]), 0], [0, 1],])
+        B = np.array([[np.cos(q[2, 0]), 0], [np.sin(q[2, 0]), 0], [0, 1],])
 
         return A, B

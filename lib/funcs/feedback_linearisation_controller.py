@@ -5,7 +5,7 @@ from .lateral_distance import lateral_distance
 
 
 def feedback_linearisation_controller(
-    q0, qd, poles=[-0.25, -0.5], dt=0.1, vd=1.0, T_max=10, epsilon=0.5
+    q0, qd, poles=[-0.25, -0.5], dt=0.1, vd=1.0, T_max=10, epsilon=0.1
 ):
     """A feedback linearisation controller for a unicycle.
 
@@ -37,9 +37,7 @@ def feedback_linearisation_controller(
     Returns:
         u (list): a list of control inputs for unicycle that steer system from q0 to qd.
         An empty list implies the path is not followable or reachable in the time allotment.
-
-
-
+        q (list): the list of configurations
     """
     q0 = q0.reshape(3, 1)
     qd = qd.reshape(3, 1)

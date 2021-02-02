@@ -21,7 +21,7 @@ def check_line_of_sight(q0, qd, obs_list, v_speed=1, epsilon=1):
 
     q0 = q0.reshape(-1, 1)
     qd = qd.reshape(-1, 1)
-    obs_list = obs_list.reshape(-1, 3)
+    obs_list = np.block([o.as_vec() for o in obs_list]).T
 
     dq = qd - q0
     d_crow = np.linalg.norm(dq)
