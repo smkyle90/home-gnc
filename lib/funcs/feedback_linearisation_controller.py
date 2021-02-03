@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import signal
 
+from ..models import Unicycle
 from .lateral_distance import lateral_distance
 
 
@@ -39,12 +40,20 @@ def feedback_linearisation_controller(
         An empty list implies the path is not followable or reachable in the time allotment.
         q (list): the list of configurations
     """
+
     q0 = q0.reshape(3, 1)
     qd = qd.reshape(3, 1)
 
+    # Check d_theta is in range (-pi/2, pi/2), if not, a valid path does not exist
+    d_theta = q0[2, 0] - qd[2, 0]
+
+    if np.abs(d_theta) > (np.pi / 2):
+        return [], []
+
+    uni = Unicycle(*q0[:, 0])
+
     ## Feedback linearisation matrices.
     A_hat = np.array([[0, 1], [0, 0],])
-
     B_hat = np.array([[0], [1],])
 
     # Closed loop control gains.
@@ -54,18 +63,11 @@ def feedback_linearisation_controller(
     # Initialise controls and state
     u = []
     q = []
-
-    # Check d_theta is in range (-pi/2, pi/2), if not, a valid path does not exist
-    d_theta = q0[2, 0] - qd[2, 0]
-
-    if np.abs(d_theta) > np.pi / 2:
-        return u, q
-
     # Initialise the time
     T = 0
-    while np.linalg.norm(q0 - qd) > epsilon:
-        e_h = q0[2, 0] - qd[2, 0]
-        e_l = lateral_distance(*q0[:2, 0], *qd[:, 0])
+    while np.linalg.norm(uni.as_vec() - qd) > epsilon:
+        e_h = uni.as_vec()[2, 0] - qd[2, 0]
+        e_l = lateral_distance(*uni.as_vec()[:2, 0], *qd[:, 0])
 
         z = np.array([[e_l], [vd * np.sin(e_h)],])
         nu = -K.dot(z)
@@ -74,11 +76,9 @@ def feedback_linearisation_controller(
 
         u.append((vd, omegad))
 
-        G = np.array([[np.cos(q0[2, 0]), 0], [np.sin(q0[2, 0]), 0], [0, 1],])
-        u_in = np.array([[vd], [omegad],])
+        uni.apply_control(u[-1], dt)
 
-        q0 = q0 + G.dot(u_in) * dt
-        q.append(q0[:, 0].tolist())
+        q.append(uni.as_vec()[:, 0].tolist())
         T += dt
 
         if T > T_max:

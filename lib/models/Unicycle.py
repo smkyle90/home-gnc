@@ -2,7 +2,7 @@ import numpy as np
 
 
 class Unicycle:
-    def __init__(self, x, y, theta, v, omega):
+    def __init__(self, x, y, theta, v=0.0, omega=0.0):
         self.x = x
         self.y = y
         self.theta = theta
@@ -16,10 +16,11 @@ class Unicycle:
         return np.array([self.x, self.y, self.theta]).reshape(self.__nq, 1)
 
     def G(self):
-        return np.array([[np.cos(self.q[2, 0]), 0], [np.sin(self.q[2, 0]), 0], [0, 1],])
+        q = self.as_vec()
+        return np.array([[np.cos(q[2, 0]), 0], [np.sin(q[2, 0]), 0], [0, 1],])
 
     def apply_control(self, u, dt):
-        u = u.reshape(self.__nu, 1)
+        u = np.array(u).reshape(self.__nu, 1)
 
         q = self.as_vec()
         q = q + self.G().dot(u) * dt

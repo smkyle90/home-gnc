@@ -84,26 +84,27 @@ class Environment:
         self.c_reach = self.current_reachable()
         self._dynamic_obs = value
 
-    def nearest_node(self, x, y):
-        q_sample = np.array([x, y]).reshape(-1, 1)
+    def k_nearest_nodes(self, q, k=1):
+        q_sample = q.reshape(-1, 1)
         q_nodes = self.reachable_coordinates().T
         node_delta = q_nodes - q_sample
+        max_vals = min(node_delta.shape[1], k)
+        min_idx = np.argpartition(np.linalg.norm(node_delta, axis=0), max_vals - 1)
 
-        min_idx = np.argmin(np.linalg.norm(node_delta, axis=0))
+        return q_nodes[:, min_idx[:k]].reshape(3, -1)
 
-        return tuple(q_nodes[:, min_idx])
+    def get_node_name(self, q):
+        q = np.array(q)
+        return str(tuple(q.reshape(-1,)))
 
-    def get_node_name(self, x, y):
-        return "({}, {})".format(x, y)
-
-    def get_node_by_coord(self, x, y):
+    def get_node_by_coord(self, q):
         """Get the nearest node by location
         """
-        node_name = self.get_node_name(x, y)
+        node_name = self.get_node_name(q)
 
         if node_name not in self.node_map:
-            node_loc = self.nearest_node(x, y)
-            node_name = self.get_node_name(*node_loc)
+            node_loc = self.k_nearest_nodes(q)
+            node_name = self.get_node_name(node_loc)
 
         return self.node_map[node_name]
 
@@ -111,7 +112,7 @@ class Environment:
 
         for row, col in zip(row_idx, col_idx):
             node_loc = (self.arena.x_mesh[row, col], self.arena.y_mesh[row, col])
-            node = self.get_node_by_coord(*node_loc)
+            node = self.get_node_by_coord(node_loc)
             self.graph.vp[obj_type][node] = not self.graph.vp[obj_type][node]
             edges = self.graph.get_out_edges(node)
             for e in edges:
@@ -140,7 +141,7 @@ class Environment:
         return c_obj
 
     def __as_graph(self):
-        """Build the base graph of the configuration space.
+        """Build the base graph of the configuration space, in R^2.
 
         This deals with ALL connections in the free configuration space.
 
@@ -162,7 +163,7 @@ class Environment:
         for i, row in enumerate(self.c_free):
             for j, col in enumerate(row):
                 node_loc = (self.arena.x_mesh[i, j], self.arena.y_mesh[i, j])
-                node_name = self.get_node_name(*node_loc)
+                node_name = self.get_node_name(node_loc)
 
                 if node_name in self.node_map:
                     continue
@@ -183,7 +184,7 @@ class Environment:
                     continue
 
                 src_loc = (self.arena.x_mesh[i, j], self.arena.y_mesh[i, j])
-                src = self.get_node_by_coord(*src_loc)
+                src = self.get_node_by_coord(src_loc)
 
                 for di in [-1, 0, 1]:
                     for dj in [-1, 0, 1]:
@@ -198,7 +199,7 @@ class Environment:
                             self.arena.x_mesh[i + di, j + dj],
                             self.arena.y_mesh[i + di, j + dj],
                         )
-                        tgt = self.get_node_by_coord(*tgt_loc)
+                        tgt = self.get_node_by_coord(tgt_loc)
 
                         e = g.add_edge(src, tgt)
 
@@ -287,7 +288,7 @@ class Environment:
 
         return vertices
 
-    def get_route(self, src, tgt):
+    def get_route(self, src, tgt):  # astar search
 
         src_node = self.graph.vertex(src)
         tgt_node = self.graph.vertex(tgt)
@@ -302,6 +303,9 @@ class Environment:
 
         return node_order
 
+    def rrt_route(self):
+        pass
+
     def get_coordinates(self, node_list):
         node_coords = []
         for v in node_list:
@@ -309,6 +313,53 @@ class Environment:
             node_coords.append(self.graph.vp["pos"][vert])
 
         return np.array(node_coords)
+
+    def check_valid_path(self, x_path, y_path, epsilon=1):
+        """check if a path is valid, i.e., it does not intersect any obstacles.
+
+        These coordiantes of the path do not need to match the nodes, or coordinates
+        in the reachable configuration space exactly.
+
+        Args:
+            x_path (list): a list-like object of x-coorindates.
+            y_path (list): a list-like object of y-coorindates
+
+        Returns:
+            valid_path (bool): if the path intersects within epsilon+r
+            of the centre of an obstacle.
+        """
+
+        x_path = np.array(x_path).reshape(-1, 1)
+        y_path = np.array(y_path).reshape(-1, 1)
+
+        # Check if the paths are within the arena bounds
+        valid_x = np.logical_and(
+            self.arena.x_min <= x_path, x_path <= self.arena.x_max
+        ).min()
+        if not valid_x:
+            return False
+
+        valid_y = np.logical_and(
+            self.arena.y_min <= y_path, y_path <= self.arena.y_max
+        ).min()
+        if not valid_y:
+            return False
+
+        # Check if the path does not intersect with obstacles
+        if not self.all_obstacles():
+            return True
+
+        obs_list = np.block([o.as_vec() for o in self.all_obstacles()]).T
+
+        # Broadcast the vectors
+        dx = obs_list[:, 0] - x_path
+        dy = obs_list[:, 1] - y_path
+
+        # Get the minimum distance for the trajectory to each obstacle
+        d_min = np.amin(np.sqrt(dx ** 2 + dy ** 2), axis=0)
+
+        # Match if this is within the obstacle's radius + epsilon
+        return np.where(d_min > (obs_list[:, 2] + epsilon), True, False).min()
 
     def check_line_of_sight(self, x0, y0, xd, yd, v_speed=1, epsilon=1):
         """Check the line of sight between a point q0 and qd, i.e.,

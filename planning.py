@@ -68,8 +68,8 @@ if True:
         q_reach = env.reachable_coordinates()
         src_pos = random.choice(q_reach)
         tgt_pos = random.choice(q_reach)
-        src = env.get_node_by_coord(*src_pos)
-        tgt = env.get_node_by_coord(*tgt_pos)
+        src = env.get_node_by_coord(src_pos)
+        tgt = env.get_node_by_coord(tgt_pos)
 
         t1 = time.perf_counter()
         nodes_visited = env.get_route(src, tgt)

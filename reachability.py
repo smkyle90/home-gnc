@@ -1,12 +1,13 @@
 import random
 
+import graph_tool.all as gt
 import matplotlib.pyplot as plt
 import numpy as np
 
 from lib.funcs import (
     check_line_of_sight,
     feedback_linearisation_controller,
-    nearest_node,
+    k_nearest_nodes,
 )
 from lib.objects import Arena, Environment, Obstacle
 
@@ -20,15 +21,15 @@ def manhattan_distance(q1, q2):
 
 
 # Arena configuration
-x_min, x_max = 0, 30
-y_min, y_max = 0, 30
-dx, dy = 1, 1
+x_min, x_max = 0, 20
+y_min, y_max = 0, 20
+dx, dy = 0.5, 0.5
 
 # Obstacle configuration
 n_stat = 0
-n_dyn = 1
+n_dyn = 0
 o_min = 1
-o_max = 3
+o_max = 2
 obs_val = 100
 epsilon = 1
 
@@ -46,8 +47,8 @@ static_obs = [
 
 dynamic_obs = [
     Obstacle(
-        10,  # random.randint(x_min, x_max),
-        10,  # random.randint(x_min, x_max),
+        random.randint(x_min, x_max),
+        random.randint(x_min, x_max),
         random.randint(1, o_max),
     )
     for i in range(n_dyn)
@@ -57,7 +58,7 @@ arena = Arena(x_min, x_max, dx, y_min, y_max, dy)
 
 env = Environment(arena, static_obs, dynamic_obs)
 
-q_init = np.array([[1.0], [1.0], [np.pi / 2]])
+q_init = np.array([[1.0], [1.0], [0]])
 
 # q_nodes = [q_init]
 
@@ -65,16 +66,11 @@ i = 0
 
 q_free = env.reachable_coordinates()
 
-q_dest = np.array([[1.0], [20.0], [3 * np.pi / 2]])
+q_dest = np.array([[15.0], [15.0], [np.pi / 4]])
 # q_dest = np.append(random.choice(q_free), np.random.uniform(0, 2 * np.pi)).reshape(
 #     -1, 1
 # )
-n_samples = 4
-
-fig = plt.figure()
-ax = fig.add_subplot(111)
-ax = env.plot_environment(ax, [])
-
+n_samples = 1
 
 # def rrt_plan(env, src, tgt):
 #     """RRT plan with manhattan heuristic.
@@ -85,101 +81,159 @@ ax = env.plot_environment(ax, [])
 path_exists = False
 dest_checked = False
 
-q_nodes = {get_node_name(q_init): {"pos": q_init, "cost": 0, "prev": None}}
-node_coords = [q_init]
+# q_nodes = {get_node_name(q_init): {"pos": q_init, "cost": 0, "prev": None, "path": []}}
 Q = []
+
+
+# g.vp["cost"] = g.new_vertex_property("float")
+
 
 # Get the reachable coordinates in the environment
 q_free = env.reachable_coordinates()
+node_coords = [q_init]
+
+
+class ConstrainedGraph:
+    def __init__(self):
+        g = gt.Graph()
+
+        g.vp["name"] = g.new_vertex_property("string")
+        g.vp["pos"] = g.new_vertex_property("vector<float>")
+        g.vp["cost"] = g.new_vertex_property("double")
+        g.ep["cost"] = g.new_edge_property("double")
+
+        self.node_map = {}
+        self.g = g
+        self.node_coords = []
+
+    def add_vertex(self, q, cost):
+        node_name = get_node_name(q)
+        new_node = self.g.add_vertex(1)
+
+        self.node_map[node_name] = new_node
+        self.node_coords.append(q.reshape(-1, 1))
+        self.g.vp["name"][new_node] = node_name
+        self.g.vp["pos"][new_node] = q.reshape(-1,).tolist()
+        self.g.vp["cost"][new_node] = cost
+
+    def add_edge(self, src_coord, tgt_coord, cost):
+        src = self.get_node(src_coord)
+        tgt = self.get_node(tgt_coord)
+
+        e = self.g.add_edge(src, tgt)
+        self.g.ep["cost"][e] = cost
+
+    def get_node(self, q):
+        return self.node_map[get_node_name(q)]
+
+
+cg = ConstrainedGraph()
+
+cg.add_vertex(q_init, 0)
 
 while not path_exists:
-    if False:
-        # if not dest_checked:
-        if env.check_line_of_sight(*q_init[:2, 0], *q_dest[:2, 0]):
-            q_source = q_init
-            q_target = q_dest
+    min_cost = np.inf
+    samples = 0
 
-        dest_checked = True
-    else:
-        min_cost = np.inf
-        samples = 0
-        while samples < n_samples:
-            q_sample = np.append(
-                random.choice(q_free), np.random.uniform(0, 2 * np.pi)
-            ).reshape(-1, 1)
+    q_sample = np.append(
+        random.choice(q_free), np.random.uniform(0, 2 * np.pi)
+    ).reshape(-1, 1)
 
-            # q_sample = np.array([
-            #     [np.random.uniform(x_min, x_max)],
-            #     [np.random.uniform(y_min, y_max)],
-            #     [np.random.uniform(0, 2 * np.pi)],
-            #     ])
+    q_nearest = k_nearest_nodes(cg.node_coords, q_sample, 3)
 
-            q_nearest = nearest_node(node_coords, q_sample)
+    min_cost = np.inf
+    min_move_cost = np.inf
+    min_coord = None
+    parent_coord = None
 
-            # Check if the change is angle is feasible
-            if np.abs(q_nearest[2, 0] - q_sample[2, 0]) > np.pi / 2:
-                continue
-            # Check if there are obstacles in the way
-            elif not env.check_line_of_sight(*q_nearest[:2, 0], *q_sample[:2, 0]):
-                continue
+    for nearest in q_nearest.T:
+        # Distance from source to target
+        dn = np.linalg.norm(nearest[:2].reshape(-1, 1) - q_sample[:2])
+        u_ff, q_path = feedback_linearisation_controller(
+            nearest.reshape(-1, 1), q_sample, T_max=2 * dn
+        )
 
-            proj_cost = q_nodes[get_node_name(q_nearest)]["cost"] + manhattan_distance(
-                q_sample, q_dest
-            )
+        # if a path exists
+        if not u_ff:
+            continue
 
-            if proj_cost < min_cost:
-                min_cost = proj_cost
-                q_target = q_sample
-                q_source = q_nearest
-
-            samples += 1
-
-    # Distance from source to target
-    dn = np.linalg.norm(q_source[:2] - q_target[:2])
-    u_ff, q_path = feedback_linearisation_controller(q_source, q_target, T_max=2 * dn)
-
-    # if a path exists
-    if u_ff:
-        q_reach = np.array(q_path[-1]).reshape(-1, 1)
-
-        # Check the distance to the goal and angle
-        dq = np.linalg.norm(q_reach[:2] - q_dest[:2])
-        dt = np.abs(q_reach[2, 0] - q_dest[2, 0])
-
-        print("Distance to goal: {}".format(round(dq, 2)))
-        print("Angle to goal: {}".format(round(dt, 2)))
-
-        if (dq < 2) and (dt < np.pi / 4):
-            path_exists = True
-
-        # Add the node to the set of eligible nodes
-        prev_cost = q_nodes[get_node_name(q_source)]["cost"]
-        move_cost = manhattan_distance(
-            q_source, q_reach
-        )  # + np.sqrt(np.trace(np.array(u_ff).T.dot(np.array(u_ff))))
-
-        q_nodes[get_node_name(q_reach)] = {
-            "pos": q_reach,
-            "cost": prev_cost + move_cost,
-            "prev": get_node_name(q_source),
-        }
-        node_coords.append(q_reach)
         Q.append(q_path)
+        q_path = np.array(q_path)
 
-    # return Q
+        if env.check_valid_path(q_path[:, 0], q_path[:, 1]):
+            # This is the point we actually reach
+            q_reach = np.array(q_path[-1]).reshape(-1, 1)
 
-    # print("Iteration: {}".format(i))
-prev_node = get_node_name(q_reach)
-while prev_node is not None:
-    print(prev_node)
-    prev_node = q_nodes[prev_node]["prev"]
+            # Add the node to the set of eligible nodes
+            nearest_node = cg.get_node(nearest)
+            prev_cost = cg.g.vp["cost"][nearest_node]
+            move_cost = manhattan_distance(
+                nearest.reshape(-1, 1), q_reach
+            )  # + np.sqrt(np.trace(np.array(u_ff).T.dot(np.array(u_ff))))
 
-node_coords = [v["pos"] for v in q_nodes.values()]
-ax.plot(np.block(node_coords)[0, :], np.block(node_coords)[1, :], "bo")
-for q_path in Q:
-    q_path = np.array(q_path)
-    ax.plot(q_path[:, 0], q_path[:, 1], "k--", alpha=0.1)
+            if prev_cost + move_cost < min_cost:
+                min_cost = prev_cost + move_cost
+                min_move_cost = move_cost
+                min_coord = q_reach
+                parent_coord = nearest
 
-ax.plot(q_init[0, 0], q_init[1, 0], "ro")
-ax.plot(q_dest[0, 0], q_dest[1, 0], "rx")
+            # Check the distance to the goal and angle
+            dq = np.linalg.norm(q_reach[:2] - q_dest[:2])
+            dt = np.abs(q_reach[2, 0] - q_dest[2, 0])
+
+            print("Distance to goal: {}".format(round(dq, 2)))
+            print("Angle to goal: {}".format(round(dt, 2)))
+
+            if (dq < 2) and (dt < np.pi / 8):
+                path_exists = True
+                q_final = nearest.reshape(-1, 1)
+
+    if min_coord is not None:
+        cg.add_vertex(min_coord, min_cost)
+        cg.add_edge(parent_coord, min_coord, min_move_cost)
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax = env.plot_environment(ax, [])
+
+src = cg.get_node(q_init)
+tgt = cg.get_node(q_final)
+
+dist, pred = gt.astar_search(cg.g, src, weight=cg.g.ep["cost"])
+
+prev_node = tgt
+while prev_node != src:
+    q0 = cg.g.vp["pos"][prev_node][:2]
+    theta = cg.g.vp["pos"][prev_node][2]
+    r0 = 2 * np.array([np.cos(theta), np.sin(theta)])
+    ax.plot(*q0, "k.")
+    ax.plot([q0[0], q0[0] + r0[0]], [q0[1], q0[1] + r0[1]], "k-")
+    prev_node = cg.g.vertex(pred[prev_node])
+
+ax.plot(np.block(cg.node_coords)[0, :], np.block(cg.node_coords)[1, :], "bo")
+ax.plot(*cg.g.vp["pos"][src][:2], "ko")
+ax.plot(*cg.g.vp["pos"][tgt][:2], "kx")
 plt.show()
+
+#     # return Q
+
+#     # print("Iteration: {}".format(i))
+# global_path = []
+# prev_node = get_node_name(q_reach)
+# while prev_node is not None:
+#     print(prev_node)
+#     global_path.extend(q_nodes[prev_node]["path"][::-1])
+#     prev_node = q_nodes[prev_node]["prev"]
+
+# global_path.reverse()
+# global_path = np.array(global_path)
+
+# node_coords = [v["pos"] for v in q_nodes.values()]
+# for q_path in Q:
+#     q_path = np.array(q_path)
+#     ax.plot(q_path[:, 0], q_path[:, 1], "k--", alpha=0.1)
+
+# ax.plot(global_path[:, 0], global_path[:, 1], 'g--', alpha=0.3)
+# ax.plot(q_init[0, 0], q_init[1, 0], "ro")
+# ax.plot(q_dest[0, 0], q_dest[1, 0], "rx")
+# plt.show()
